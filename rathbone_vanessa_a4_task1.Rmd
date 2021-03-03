@@ -1,0 +1,67 @@
+---
+title: 'Task 1: Agglomerative hierarchical clustering'
+author: "Vanessa Rathbone"
+date: "3/2/2021"
+output: html_document
+---
+
+```{r, message = FALSE, warning = FALSE}
+library(tidyverse)
+library(here)
+library(janitor)
+library(palmerpenguins)
+
+# Packages for cluster analysis: 
+library(NbClust)
+library(cluster)
+library(factoextra)
+library(dendextend)
+library(ggdendro)
+```
+
+For Task 1, use hierarchical clustering by complete linkage to create a dendrogram showing multivariate clustering for water chemistry by site, saved as lastname_firstname_a4_task1.html. 
+
+To perform hierarchical clustering by site, you’ll want to make a data frame that has a single summary row per site (e.g. based on means from all observations at that site), then calculate the euclidean distance before performing complete linkage agglomerative hierarchical clustering. 
+
+Link to the data: https://drive.google.com/file/d/16rYLBi-CgvjcWhOsX1SLdD9HHUMP9m2l/view?usp=sharing
+
+DATA & METADATA SOURCE: 
+SBC LTER: Stream chemistry in the Santa Barbara Coastal drainage area, ongoing since 2000
+Creators: Santa Barbara Coastal LTER, & Melack, John M
+Citation: Santa Barbara Coastal LTER and J. Melack. 2019. SBC LTER: Land: Stream chemistry in the Santa Barbara Coastal drainage area, ongoing since 2000 ver 16. Environmental Data Initiative. https://doi.org/10.6073/pasta/67a558a24ceed9a0a5bf5e46ab841174. 
+
+```{r}
+# Read in the data and wrangle it
+
+chem_main <- 
+
+
+```
+
+#### Exploratory visualization
+
+First, do some exploratory data visualization, mapping species onto point color. Does it look like there is an opportunity to cluster by species? 
+
+```{r}
+
+# Bill length versus depth exploratory plot:
+ggplot(penguins) +
+  geom_point(aes(x = bill_length_mm, 
+                 y = bill_depth_mm, 
+                 color = species,
+                 shape = sex),
+             size = 3,
+             alpha = 0.7) +
+  scale_color_manual(values = c("orange","cyan4","darkmagenta"))
+
+# Flipper length versus body mass exploratory plot: 
+ggplot(penguins) +
+  geom_point(aes(x = flipper_length_mm, 
+                 y = body_mass_g, 
+                 color = species,
+                 shape = sex),
+             size = 3,
+             alpha = 0.7) +
+  scale_color_manual(values = c("orange","cyan4","darkmagenta"))
+```
+
