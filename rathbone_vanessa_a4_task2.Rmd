@@ -1,0 +1,136 @@
+---
+title: "Parameter Estimation - Wild Fish Catch"
+author: "Vanessa Rathbone"
+date: "3/5/2021"
+output:
+    html_document:
+      code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+library(tidyverse)
+library(broom)
+library(nlstools)
+library(here)
+library(janitor)
+library(kableExtra)
+
+```
+
+Nonlinear least squares (NLS) finds parameter estimates to minimize the sum of squares of residuals, using an iterative algorithm. We'll use NLS to find the parameters for a logistic growth equation. 
+
+**Data Source:** Global wild fish catch and aquaculture production, compiled by Earth Policy Institute with 1950-2010 from U.N. Food and Agriculture Organization (FAO), [Global Capture Production and Global Aquaculture Production, electronic databases](www.fao.org/fishery/topic/16140/en)
+
+## Read in the data and visualize it
+```{r, include = FALSE}
+
+fish_df <- read_csv("fish_catch.csv") %>% 
+  janitor::row_to_names(row_number = 2) %>% 
+  slice(-1) %>% 
+  slice(-1) %>% 
+  clean_names() %>% 
+  filter(year %in% c(1950:2012)) %>% 
+  mutate(across(where(is.character), as.numeric)) %>% 
+  mutate(year_number = 0:62)
+
+```
+
+```{r, echo = FALSE}
+ggplot(fish_df, aes(x = year, y = wild_catch)) + 
+  geom_point()
+```
+
+There is a linear relationship between wild fish caught over time. Around the 1990s, however, you can see some type of plateau, either a threshold of fish being caught due to abundance (or carrying capacity), or a limit to how many fish can be caught due to permitting. This can be described mathematically by the following logistic growth equation: 
+
+$P(t)=\frac{K}{1+Ae^{-kt}}$, where
+
+- $K$ is the carrying capacity
+- $A$ is $\frac{K-P_0}{P_0}$
+- $P_0$ is the population at time zero
+- $P(t)$ is the population at time $t$
+- $k$ is the growth rate constant
+
+```{r, echo = FALSE}
+# Find linear coefficients
+# Get up to 38 years and log transform the wild catch
+# We do this so we can estimate the growth rate constant (k) *during exponential growth phase)
+df_lm <- fish_df %>% 
+  filter(year_number < 38) %>% 
+  mutate(ln_wild = log(wild_catch))
+
+lm_fish <- lm(ln_wild ~ year_number, data = df_lm)
+
+A <- (90 - 15)/15
+  
+# Model linear to get *k* estimate (the slope of this linear equation is an estimate of the growth rate constant):
+lm_k <- lm(ln_wild ~ year_number, data = df_lm)
+
+# Coefficient (k) ~ 0.04
+
+```
+
+Initial estimates for the parameters in the model are:
+
+- $K$ is ~ 90
+- $A$ is ~ 5
+- $k$ is ~ 0.04
+
+## Non-Linear Least Squares Calculation
+```{r, echo=FALSE, results='hide'}
+
+df_nls <- nls(wild_catch ~ K/(1 + A*exp(-r*year_number)),
+              data = fish_df,
+              start = list(K = 90, A = 15, r = 0.04),
+              trace = TRUE
+              )
+
+#prep data for table 
+fish_table <- broom::tidy(df_nls) %>% 
+  mutate_if(is.numeric, funs(as.character(signif(., 3))))
+
+```
+
+**Table 1.** Non-Linear Least Squares for Wild Fish Caught (million tons) 1950-2016.
+```{r, echo = FALSE}
+
+fish_table %>% 
+  kable(col.names = c("Variable",
+                      "Estimated Value", 
+                      "Standard Error",
+                      "Statistic",
+                      "P-value")) %>% 
+# Column names - can't change row names in kable.
+  kable_styling(bootstrap_options = "striped",
+                full_width = F,
+                position = "left") %>% 
+  add_header_above(bold = TRUE,
+                   line = TRUE, 
+                   c("Non-Linear Least Squares for Wild Fish Caught (million tons) 1950-2016" = 5))
+  
+```
+## Finalized visualization of observed vs. predicted values
+```{r, echo = FALSE}
+
+fish_predict <- predict(df_nls)
+
+fish_complete <- data.frame(fish_df, fish_predict)
+
+ggplot(data = fish_complete, aes(x = year, y = wild_catch)) +
+  geom_point(aes(colour = "Observed")) +
+  geom_line(aes(x = year, 
+                y = fish_predict,
+                colour = "Predicted")) +
+  theme_minimal() +
+  labs(title = "Observed vs. Predicted Wild Fish Caught (million tons) 1950-2016",
+       x = "Year", 
+       y = "Wild Caught Fish (million tons)") +
+  scale_colour_manual(name="",
+                    values = c(Predicted="slateblue4", Observed="gray62")) +
+  theme(legend.position = c(0.28, 0.82),
+        legend.text = element_text(size = 12)) 
+
+```
+
+

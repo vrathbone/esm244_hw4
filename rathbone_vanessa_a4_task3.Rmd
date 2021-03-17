@@ -1,0 +1,87 @@
+---
+title: 'Bootstrap Analysis'
+author: "Vanessa Rathbone"
+date: "3/6/2021"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+library(tidyverse)
+library(here)
+library(boot)
+library(gt)
+library(patchwork)
+library(broom)
+
+```
+
+
+**Study information:** In the study, 22 out of 36 surveyed UCSB community members (61%) identifying as nonbinary/genderqueer responded that they had personally experienced “exclusionary, offensive, hostile or intimidating conduct” (compared to 26% and 19% for those identifying as women and men, respectively). 
+
+**Data source:** The 2014 UCSB Campus Climate Project Final Report (prepared by Rankin & Associates Consulting, available at http://campusclimate.ucop.edu/_common/files/pdf-climate/ucsb-full-report.pdf).
+
+## Create vector of the data
+```{r}
+
+# Make a vector with 36 sample size
+ucsb_sample <- data.frame("gender_identity" = "nonbinary",
+                        "exclusion" = c(1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1,
+                                        1, 1, 1, 1, 1,
+                                        1, 1, 0, 0 ,0, 0,
+                                        0, 0, 0, 0, 0,
+                                        0, 0, 0, 0, 0))
+
+# Vizualize the data
+hist(ucsb_sample$exclusion)
+mean(ucsb_sample$exclusion)
+t.test(ucsb_sample$exclusion) # Get 95% CI for t-distribution
+
+```
+
+
+## Create a function to find the proportion
+```{r}
+
+# Build a function for the proportion of nonbinary/genderqueer individuals experiencing exclusionary conduct based on the 2014 UCSB survey data.
+prop_fun <- function(x,i) {sum(x[i])/length(x[i])}
+
+prop_vec <- ucsb_sample$exclusion
+
+ucsbboot_10000 <- boot(prop_vec, 
+                    statistic = prop_fun,
+                    R = 10000)
+
+```
+
+
+## Histogram of 10,000 sample bootstrap
+```{r}
+
+# These are all the proportions for each of the 10000 bootstrap samples
+ucsb_10000_df <- data.frame(bs_proportion = ucsbboot_10000$t) 
+
+ggplot(ucsb_10000_df, aes(bs_proportion)) +
+  geom_histogram(bins = 25, color = "brown3", fill = "brown3") +
+  theme_minimal() +
+  labs(x = "Proportion nonbinary/genderqueer students to experience exclusionary conduct",
+       y = "Count of samples from bootstrapping")
+
+```
+
+## Confidence interval
+```{r}
+
+boot.ci(ucsbboot_10000, conf = 0.95)
+
+```
+
+Here, the intervals are based on a sampling distribution of means calculated from a large number of bootstrap samples (10,000). It uses the middle 95% of the bootstrap estimates (removing the bottom/top 2.5%) to for the 95% confidence interval. That means we expect that 95 of 100 calculated confidence intervals will contain the actual population parameter. 
+
+The mean proportion of UCSB students that identify as nonbinary/genderqueer who responded that they have personally experienced "exclusionary, offensive, hostile or intimidating conduct is 61% from the original sample size of n = 36. Whereas, with a bootstrapped 95% confidence interval the mean proportion increase to (45.06%, 77.24%) with a bootstrap sample size of n = 10,000.
+
+These results are bootstrap variances needed for studentized intervals, which are used when the statistic is homoscedastic and the standard error of the bootstrap statistic can be estimated by second-stage resampling. Here, the normal intervals are (0.4506,  0.7724) so we can be 95% certain that the actual correlation between nonbinary students experiencing exclusionary conduct in this interval is (45.06%, 77.24%). Because there is no "type" of parameter applied to this function, the interval changes for each type of computation, Normal, Basic, Percentile and BCa. 
